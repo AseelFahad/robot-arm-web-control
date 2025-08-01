@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Robot Arm Control</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+
+    h2 {
+      color: #333;
+    }
+
+    .slider-container {
+      margin: 10px 0;
+    }
+
+    .slider {
+      width: 300px;
+    }
+
+    .value {
+      margin-left: 10px;
+      font-weight: bold;
+    }
+
+    button {
+      margin: 5px;
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    table {
+      margin: 30px auto;
+      border-collapse: collapse;
+      width: 90%;
+      max-width: 800px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #e0e0e0;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Robot Arm Control Panel</h2>
+
+  <div id="sliders"></div>
+
+  <button onclick="resetSliders()">Reset</button>
+  <button onclick="savePose()">Save Pose</button>
+  <button onclick="runPose()">Run</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Servo 1</th><th>Servo 2</th><th>Servo 3</th>
+        <th>Servo 4</th><th>Servo 5</th><th>Servo 6</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="poseTable">
+      <!-- Dynamic rows will be added here -->
+    </tbody>
+  </table>
+
+  <script>
+    const slidersContainer = document.getElementById('sliders');
+    const sliderCount = 6;
+    const sliders = [];
+
+    // إنشاء السلايدرات
+    for (let i = 0; i < sliderCount; i++) {
+      const container = document.createElement('div');
+      container.className = 'slider-container';
+
+      const label = document.createElement('label');
+      label.textContent = `Motor ${i + 1}: `;
+
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = '0';
+      slider.max = '180';
+      slider.value = '90';
+      slider.className = 'slider';
+
+      const valueDisplay = document.createElement('span');
+      valueDisplay.className = 'value';
+      valueDisplay.textContent = slider.value;
+
+      slider.oninput = () => {
+        valueDisplay.textContent = slider.value;
+      };
+
+      container.appendChild(label);
+      container.appendChild(slider);
+      container.appendChild(valueDisplay);
+
+      slidersContainer.appendChild(container);
+      sliders.push(slider);
+    }
+
+    function resetSliders() {
+      sliders.forEach(slider => slider.value = 90);
+      document.querySelectorAll('.value').forEach(el => el.textContent = '90');
+    }
+
+    function savePose() {
+      const values = sliders.map(slider => slider.value);
+      fetch('save_pose.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        loadSavedPoses();
+      });
+    }
+
+    function runPose() {
+      const values = sliders.map(slider => slider.value);
+      fetch('run_pose.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+      });
+    }
+
+    function loadSavedPoses() {
+      fetch('get_saved_poses.php')
+        .then(res => res.json())
+        .then(data => {
+          const table = document.getElementById('poseTable');
+          table.innerHTML = '';
+          data.forEach((row, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${index + 1}</td>
+              <td>${row.servo1}</td>
+              <td>${row.servo2}</td>
+              <td>${row.servo3}</td>
+              <td>${row.servo4}</td>
+              <td>${row.servo5}</td>
+              <td>${row.servo6}</td>
+              <td>
+                <button onclick='loadPose(${JSON.stringify(row)})'>Load</button>
+                <button onclick='removePose(${row.id})'>Remove</button>
+              </td>
+            `;
+            table.appendChild(tr);
+          });
+        });
+    }
+
+    function loadPose(pose) {
+      sliders[0].value = pose.servo1;
+      sliders[1].value = pose.servo2;
+      sliders[2].value = pose.servo3;
+      sliders[3].value = pose.servo4;
+      sliders[4].value = pose.servo5;
+      sliders[5].value = pose.servo6;
+      document.querySelectorAll('.value').forEach((val, i) => val.textContent = sliders[i].value);
+    }
+
+    function removePose(id) {
+      fetch('remove_pose.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        loadSavedPoses();
+      });
+    }
+
+    // تحميل البيانات المحفوظة عند بدء الصفحة
+    loadSavedPoses();
+  </script>
+
+</body>
+</html>
